@@ -15,7 +15,7 @@ data "aws_subnets" "default" {
 
 # 3. 보안그룹생성 선언 - EC2전입 하는데 인바운드 포트/IP, 아웃바운드 포트/IP -> 접근 제한!
 resource "aws_security_group" "DE-AI-18-IaC-TF-GROUP-CHA" {
-  name        = "terraform-18-sg"
+  name        = "terraform-18-sg2"
   description = "de-ai-18 security group"
   #보안그룹은 vpc종속되어 구성됨
   #id->'리소스명-해시값'으로 구성
@@ -51,30 +51,30 @@ resource "aws_security_group" "DE-AI-18-IaC-TF-GROUP-CHA" {
 
 # 아마존 리눅스 AMI의 ID조회
 data "aws_ami" "amazon_linux" {
-    # 최신설정
-    most_recent = true
-    # 소유자
-    owners = ["amazon"]
-    # 필터링
-    filter {
-       name = "name"
-        values = [ "al2023-ami-*" ]
-    }
+  # 최신설정
+  most_recent = true
+  # 소유자
+  owners = ["amazon"]
+  # 필터링
+  filter {
+    name   = "name"
+    values = ["al2023-ami-*"]
+  }
 
   # 프리티어를 사용하려면 필터를 추가해야함 -> EC2에서 인스턴스 유형이 t2/t3 micro등 선택되어야 확정됨
   # 필터 추가
   filter {
-    name = "architecture"
+    name   = "architecture"
     values = ["x86_64"]
   }
 }
 
 # 4. EC2 생성 선언
 resource "aws_instance" "DE-AI-18-IaC-TF" {
-  ami = data.aws_ami.amazon_linux.id
+  ami           = data.aws_ami.amazon_linux.id
   instance_type = var.instance_type
-  key_name = var.key_name
-  subnet_id = data.aws_subnets.default.ids[0] #a,b,c,d중 첫번째 선택
+  key_name      = var.key_name
+  subnet_id     = data.aws_subnets.default.ids[0] #a,b,c,d중 첫번째 선택
   vpc_security_group_ids = [
     aws_security_group.DE-AI-18-IaC-TF-GROUP-CHA.id
   ]
@@ -86,14 +86,16 @@ resource "aws_instance" "DE-AI-18-IaC-TF" {
     Name = "DE-AI-18-ap2-IaC-TF-EC2"
   }
   #IP는 임시로 자동할당 (현재 EIP사용 X)
-
+  # TODO: 동일스펙으로 2개 생성
+  count = 2
 }
 
-
-# # 5. Elastic IP 
+# 5. Elastic IP 
 # resource "aws_eip" "DE-AI-18-IaC-TF-EIP" {
+#   # 동일 스펙으로 2개 생성
+#   count = 2
 #   # EC2 인스턴스 
-#   instance = aws_instance.DE-AI-18-IaC-TF.id
+#   instance = aws_instance.DE-AI-18-IaC-TF[ count.index ].id
 #   # 네트워크
 #   domain = "vpc"
 # }

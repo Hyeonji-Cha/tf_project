@@ -75,5 +75,43 @@ stations = "테라폼"
 # locals
 - 코드 내부에서만 상뇽하는 상수, 계산값등, 외부에서 수정 x
 
-# Function(함수)
+# Function (함수)
+```
+# 문자열 지원
+upper()
+lower()
+join()
+split()
+... (숫자, 컬렉션(list/set/.), 맵)
+```
 
+# for_each (반복)
+- 계획된 여러 타입/변수등 반복적으로 리소스에 반영하여 구성한다면 유용
+- 반복 주체 : 리소스
+- 반복 결과 : 리소스 여러개 생성
+```
+for_each_value = {
+  "db" = "t3.medium"
+  "was" = "t3.small"
+  "web" = "t3.micro"
+}
+```
+
+# count
+- 리소스는 기본 1개 생성 컨셉
+- 속성으로 count를 부여하여 수치를 세팅 => 수치만큼 생성됨
+```
+resource "..." "was"{
+    ...
+    count = 3  # was용 리소스를 같은 스펙에서 3개 생성함
+    ...
+}
+```
+- 실습 basic의 *.tf코드 복사하여 tf-step2로 붙여넣기 
+```
+    # 코드 수정후
+    terraform init
+    terraform apply
+    # 확인
+    terraform destroy
+```
