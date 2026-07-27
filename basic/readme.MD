@@ -112,5 +112,18 @@ pem 파일, 스토리지, 리전, 이름, ...
 - maim.tf
      - 통합적으로 구성(VPC(기본)-> SUBNETS(기본)->보안그룹(동적생성)-> OS 이미지 조회/선택(amazonLinux2->EC2생성 선언-> Elastic IP생성 연결))
      - 클라우드 내부에 나만 사용하는 사설네트워크(VPC관련 전체 리소스)만 제외하고 전체 구성을 동적으로 생성
+     - data, resouce등 작성
+          - 리소스 유형(https://registry.terraform.io/providers/hashicorp/aws/latest/docs)
+          - AWS VPC -> aws_vpc
+          - AWS IAM Role -> aws_iam_role
+          - <provider name>_<service name> or <provider name>_<service name>_<resource detail>
+          - TF내부 고유명 : 커스텀가능
+          ```
+               data|resource "리소스유형(AWS 고정값)" "테라폼 내부 식별자(TF내부 고유명)" {
+                    ...
+               }
+          ```
      - VPC는 리전별로 기본이 하나씩 구성되어 있다.
           - 현재ap-northeast-2[서울]의 기본 VPC는 서브넷 4개, 라우팅테이블 1개, 인터넷 게이트웨이 1개(서브넷 4개가 모두 연결되어 있음) 으로 구성되어있음. -> 어떤 서브넷을 사용하던 EC2는 외부에서 접속 가능한 구조임
+
+
