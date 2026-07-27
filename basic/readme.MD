@@ -126,4 +126,122 @@ pem 파일, 스토리지, 리전, 이름, ...
      - VPC는 리전별로 기본이 하나씩 구성되어 있다.
           - 현재ap-northeast-2[서울]의 기본 VPC는 서브넷 4개, 라우팅테이블 1개, 인터넷 게이트웨이 1개(서브넷 4개가 모두 연결되어 있음) 으로 구성되어있음. -> 어떤 서브넷을 사용하던 EC2는 외부에서 접속 가능한 구조임
 
+     - 보안 그룹 생성(resource)하도록 선언
+          - 작성(세부 설명은 코드에 삽입)
+          - 실행 테스트
+               ```
+               # 자동 정렬  => = 를  기준으로 좌우 정렬 진행(주석에 따라 처리 않될수 있음-> 외부나 뒤쪽으로 배치선호)
+               terraform fmt 
+               ---
+               main.tf
+               outputs.tf
+               provider.tf
 
+               # 유효성 검사
+               terraform validate
+               ---
+               Success! The configuration is valid.
+
+               # 플랜 => 이렇게 만들것이다
+               terraform plan
+               ---
+               ..
+               symbols:
+                    + create  <= + 생성
+               ...
+                    하위 모든 리소스 에서 + 형태로 확인됨
+               ... 
+               요약
+               Plan: 1 to add, 0 to change, 0 to destroy
+
+               # 적용
+               terraform apply
+
+               # aws 보안 그룹 확인 -> aws 대시보드
+
+               # 삭제
+               terraform destroy
+               ---
+                    - destroy : 삭제(제거) 처리 
+               ...
+                    하위 모든 리소스 에서 - 형태로 확인됨
+               ... 
+               요약
+               Plan: 0 to add, 0 to change, 1 to destroy.
+               ```
+     
+     - AMI(Amazon Machine Image) OS 이미지 조회
+          - 사전에 어떤 제품을 사용하겠다 선정함(아마존 리눅스)
+          - 목표 : ami-xxxx로 표기되는 이미지값 획득
+          ```
+          terrafomr apply
+          ---
+               ...
+               aws_ami_amazon_linux_id = "ami-0f93dc65265863858" <- 아이디 조회됨
+               ...
+          ```
+          - data.aws_ami.amazon_linux 정보를 출력하여 전체 정보 확인 가능
+     
+     - EC2 생성 선언
+          - 재료(vpc, subnets, 보안그룹, ami, 인스턴스유형(직접지정), pem파일 ) 전부 이용하여 구성
+          - plan
+          ```
+               symbols:
+               + create
+
+               Terraform will perform the following actions:
+
+               # aws_instance.DE-AI-25-IaC-TF will be created
+               + resource "aws_instance" "DE-AI-25-IaC-TF" {
+                    + ami                                  = "ami-0f93dc65265863858"
+                    + arn                                  = (known after apply) <- 생성된 후에 확인가능
+               
+               ...
+               Plan: 2 to add, 0 to change, 0 to destroy. <- 보안그룹, EC2 생성등 2개 리소스 생성으로 확정
+          ```
+          - apply
+          ```
+               ...
+               aws_security_group.DE-AI-25-IaC-TF-GROUP: Creating...
+               aws_security_group.DE-AI-25-IaC-TF-GROUP: Creation complete after 3s [id=sg-0e9ec5a5dca9c8f29]
+               aws_instance.DE-AI-25-IaC-TF: Creating...
+               aws_instance.DE-AI-25-IaC-TF: Still creating... [00m10s elapsed]
+               aws_instance.DE-AI-25-IaC-TF: Creation complete after 12s [id=i-08491f3c0f269a12e]
+
+               Apply complete! Resources: 2 added, 0 changed, 0 destroyed. <- 15초 소요
+
+               Outputs:
+               ... <- 현재 퍼블릭 IP 없음 (출력 처리 x)
+
+          ```
+          - destroy
+          ```
+               ...
+               aws_instance.DE-AI-25-IaC-TF: Destruction complete after 1m0s <- 1분 소요
+               ...
+               Destroy complete! Resources: 2 destroyed. <- 2개 리소스 삭제
+          ```
+
+     - EIP 생성
+          ```
+          - apply
+               
+          ```
+
+# basic 정리
+- 기본 VPC/서브넷 사용 => 전용 VPC 필요함(개선)
+- 보안그룹, ec2, eip => 동적 생성 연결
+- 선언 및 표현
+     - data         : 기존 aws 리소스 조회
+     - resource     : 새로운 aws 리소스 생성
+     - provider     : AWS 연결 설정, 버전등
+     - *.tf
+          - variable : 변수 정의 -> 설정값 분리 관리
+          - output   : 테라폼의 수행(생성) 결과 출력
+- 명령어
+     - terraform fmt          : tf 코드의 자동 정렬
+     - terraform validate     : 문법 검사
+     - terraform init         : 초기화, 최초 필요한 공간, 실행파일등 세팅 (*.exe,..)
+     - terraform plan         : apply 적용에 대한 계획 시뮬레이션 -> 검토
+     - terraform apply        : 리소스 생성
+     - terraform destroy      : 리소스 해제(삭제)
