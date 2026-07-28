@@ -86,6 +86,11 @@ resource "aws_instance" "DE-AI-18-IaC-TF" {
     Name = "DE-AI-18-ap2-IaC-TF-EC2"
   }
   #IP는 임시로 자동할당 (현재 EIP사용 X)
+  # <<-EOF .. EOF : 여러줄 문자열을 한번에 스크립트나 파일로 넘겨주는 형식(Here-Document)
+  user_data = <<-EOF
+    #!/bin/bash
+    dnf install -y ec2-instance-connect
+  EOF
 
 }
 
