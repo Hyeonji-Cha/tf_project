@@ -36,6 +36,12 @@ resource "aws_security_group" "DE-AI-18-IaC-TF-GROUP-CHA" {
     description = "HTTP"
     cidr_blocks = ["0.0.0.0/0"] #전세계로 개방
   }
+  ingress {
+    protocol    = "tcp"
+    from_port   = 443
+    to_port     = 443
+    cidr_blocks = ["0.0.0.0/0"]
+  }
 
   # 아웃바운드
   egress {
@@ -99,3 +105,6 @@ resource "aws_instance" "DE-AI-18-IaC-TF" {
 #   # 네트워크
 #   domain = "vpc"
 # }
+
+
+# 다이나믹 적용
