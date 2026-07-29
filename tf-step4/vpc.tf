@@ -50,3 +50,27 @@ resource "aws_route_table_association" "public" {
   route_table_id = aws_route_table.public.id
 
 }
+
+# private 서브넷 구성
+resource "aws_subnet" "private" {
+  vpc_id            = aws_vpc.company-vpc-cha.id
+  cidr_block        = "10.0.2.0/24"
+  availability_zone = "ap-northeast-2a"
+  tags = {
+    Name = "DE-AI-18-private-subnet"
+  }
+}
+
+# 라우트 테이블
+resource "aws_route_table" "private" {
+  vpc_id = aws_vpc.company-vpc-cha.id
+  tags = {
+    Name = "DE-AI-18-cha-private-rt"
+  }
+}
+
+# 최종연결 (프라이빗 서브넷 -> 프라이빗전용 라우트테이블)
+resource "aws_route_table_association" "private" {
+  subnet_id      = aws_subnet.private.id
+  route_table_id = aws_route_table.private.id
+}

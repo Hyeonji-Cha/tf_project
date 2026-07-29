@@ -55,6 +55,9 @@ resource "aws_security_group" "sg" {
   for_each    = local.security_groups
   name_prefix = "DE-AI-18-${each.key}-sg"
   description = "${upper(each.key)} Security Group"
+  tags = {
+    Name = "DE-AI-18-${each.key}-sg"
+  }
 
 
   # VPC지정
@@ -78,5 +81,34 @@ resource "aws_security_group" "sg" {
     to_port     = 0
     cidr_blocks = ["0.0.0.0/0"]
   }
- 
+
+}
+
+############################################
+# Web -> Was 룰 적용, 포트 8000 오픈, 룰생성 선언
+############################################
+resource "aws_security_group_rule" "web-to-was" {
+  type = "ingress"
+  # 소스(web) 보안 그룸
+  source_security_group_id = aws_security_group.sg["web"].id
+  # 타겟(was) 보안 그룹
+  security_group_id = aws_security_group.sg["was"].id
+  from_port         = 8000
+  to_port           = 8000
+  protocol          = "tcp"
+}
+
+############################################
+# was -> DB 룰 적용, 포트 3306 오픈
+############################################
+resource "aws_security_group_rule" "was-to-to" {
+  type = "ingress"
+  # 소스(Was) 보안 그룸
+  source_security_group_id = aws_security_group.sg["was"].id
+  # 타겟(Db) 보안 그룹
+  security_group_id = aws_security_group.sg["db"].id
+  from_port         = 3306
+  to_port           = 3306
+  protocol          = "tcp"
+
 }
