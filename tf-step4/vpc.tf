@@ -74,3 +74,36 @@ resource "aws_route_table_association" "private" {
   subnet_id      = aws_subnet.private.id
   route_table_id = aws_route_table.private.id
 }
+
+############################################
+# NAT Gateway 작업
+############################################
+# 1.eip
+resource "aws_eip" "DE-AI-18-IaC-TF-EIP-NAT" {
+  # EC2 인스턴스 
+  domain = "vpc"
+  tags = {
+    Name = "DE-AI-18-web-EIP-NAT"
+  }
+}
+
+# 2. NAT Gateway
+resource "aws_nat_gateway" "DE-AI-NAT-GW" {
+  allocation_id = aws_eip.DE-AI-18-IaC-TF-EIP-NAT.id
+  subnet_id     = aws_subnet.public.id
+  tags = {
+    Name = "DE-AI-NAT-GW-Cha"
+  }
+  # 명시적 의존성 표기
+  depends_on = [
+    aws_internet_gateway.company
+  ]
+
+}
+
+# 3. 라우트 테이블에 라우트 설정(nat와 연결)
+resource "aws_route" "private_nat" {
+  route_table_id         = aws_route_table.private.id
+  destination_cidr_block = "0.0.0.0/0"
+  nat_gateway_id         = aws_nat_gateway.DE-AI-NAT-GW.id
+}
