@@ -5,7 +5,7 @@ locals {
   #프로젝트명(반복은 아니지만 필수도 아님)-> 상수(고정값 관점)
   project = "DE-AI-cha-18-IaC-3tier-V1"
   common_tags = {
-    Project     = locals.project
+    Project     = local.project
     Environment = var.environment
     ManageBy    = "Terraform"
   }

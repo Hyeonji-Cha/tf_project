@@ -1,7 +1,7 @@
 ############################################
 # tf 전체에서 사용할 변수 7개 정의
 ############################################
-variable "regiion" {
+variable "region" {
   description = "AWS리전"
   type        = string
   default     = "ap-northeast-2"
