@@ -36,7 +36,7 @@ variable "db_name" {
   type        = string
   default     = "appdb"
 }
-variable "user_name" {
+variable "db_username" {
   description = "RDS관리자 이름"
   type        = string
   default     = "adminuser"

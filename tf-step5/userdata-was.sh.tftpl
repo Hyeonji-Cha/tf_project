@@ -1,0 +1,78 @@
+#!/bin/bash
+set -euxo pipefail
+
+# WAS 서버는 Docker에서 간단한 FastAPI 애플리케이션을 실행한다.
+dnf update -y
+# Docker를 설치
+dnf install -y docker
+
+# SSM Agent를 활성화하고 즉시 시작
+# enable: 재부팅 후에도 자동 실행
+# --now: 지금 즉시 실행
+# || true: 명령이 실패해도 전체 스크립트를 중단하지 않음
+systemctl enable --now amazon-ssm-agent || true
+# Docker 서비스를 활성화하고 즉시 실행 => 실패하면 스크립트가 중단
+systemctl enable --now docker
+
+# FastAPI 소스와 Dockerfile을 저장할 디렉터리를 생성
+mkdir -p /opt/app
+
+# PYTHON까지의 내용을 /opt/app/app.py 파일로 저장 (더미)
+cat > /opt/app/app.py <<'PYTHON'
+import os
+import socket
+from fastapi import FastAPI
+
+app = FastAPI()
+
+@app.get("/health")
+def health():
+    return {"status": "ok", "tier": "was"}
+
+@app.get("/")
+def root():
+    # 여러 WAS 인스턴스가 있다면 요청할 때마다 hostname이 달라질 수 있어 로드 밸런싱 확인에 유용
+    return {
+        "message": "3-Tier v2 response",
+        "hostname": socket.gethostname(),
+        "db_host": os.getenv("DB_HOST"),
+        "db_name": os.getenv("DB_NAME"),
+    }
+PYTHON
+
+# Python 의존성 파일을 생성
+cat > /opt/app/requirements.txt <<'REQ'
+fastapi==0.116.1
+uvicorn[standard]==0.35.0
+REQ
+
+# Docker 이미지를 만들기 위한 Dockerfile을 생성
+cat > /opt/app/Dockerfile <<'DOCKER'
+FROM python:3.12-slim
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY app.py .
+EXPOSE 8000
+# 컨테이너가 시작될 때 실행할 명령
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]
+DOCKER
+
+# 애플리케이션 디렉터리로 이동
+cd /opt/app
+# 현재 디렉터리의 Dockerfile을 이용해 이미지를 생성
+docker build -t de-ai-25-was:v2 .
+
+# 컨테이너를 백그라운드로 실행
+docker run -d \
+  --name was-app \
+  --restart always \
+  -p 8000:8000 \
+  -e DB_HOST="${db_host}" \
+  -e DB_PORT="${db_port}" \
+  -e DB_NAME="${db_name}" \
+  -e DB_USER="${db_user}" \
+  de-ai-25-was:v2
+
+# EC2 운영체제 시간대를 한국 표준시로 변경합
+timedatectl set-timezone Asia/Seoul

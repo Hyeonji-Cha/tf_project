@@ -1,0 +1,73 @@
+#!/bin/bash
+# 이 스크립트를 Bash로 실행
+set -euxo pipefail
+# 스크립트를 엄격하게 실행
+# -e 명령 실패 시 즉시 중단
+# -u 정의되지 않은 변수 사용 시 오류
+# -x 실행 명령을 로그에 출력
+# pipefail 파이프 중 하나라도 실패하면 전체 실패 처리 <- -o : 튻정 옵션을 이름으로 사용하겠다 
+
+# WEB 서버는 외부 ALB 요청을 받고 내부 ALB의 WAS로 전달한다.
+# Amazon Linux의 패키지를 최신 상태로 업데이트
+dnf update -y
+# WEB 서버 역할을 할 Nginx를 설치
+dnf install -y nginx
+
+# AL2023 공식 AMI에는 SSM Agent가 기본 포함된다.
+systemctl enable --now amazon-ssm-agent || true
+# SSM Agent를 활성화하고 즉시 실행
+
+# 기본 nginx 설정을 교체하여 listen 80 중복을 방지한다.
+# 기존 /etc/nginx/nginx.conf 내용을 아래 설정으로 완전히 교체
+# 기존 기본 설정과 새 설정에서 동시에 listen 80을 사용하면 충돌할 수 있기 때문에 전체 설정을 교체하는 방식
+# <<'NGINX' : NGINX가 다시 나올 때까지의 내용을 파일에 저장
+# 아래 internal_alb_dns는 먼저 치환됨
+cat > /etc/nginx/nginx.conf <<'NGINX'
+user nginx;
+worker_processes auto;
+error_log /var/log/nginx/error.log notice;
+pid /run/nginx.pid;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                    '$status $body_bytes_sent "$http_referer" '
+                    '"$http_user_agent" "$http_x_forwarded_for"';
+
+    access_log /var/log/nginx/access.log main;
+    sendfile on;
+    keepalive_timeout 65;
+
+    server {
+        listen 80;
+        server_name _;
+
+        location = /health {
+            access_log off;
+            default_type application/json;
+            return 200 '{"status":"ok","tier":"web"}';
+        }
+
+        location / {
+            proxy_pass http://${internal_alb_dns}:8000;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+    }
+}
+NGINX
+# Nginx 설정 파일 작성이 끝났음을 의미
+
+# Nginx 설정 파일의 문법이 올바른지 검사
+# 문법 오류가 있으면 set -e 때문에 스크립트가 중단되고 Nginx가 시작되지 않음
+nginx -t
+# Nginx를 즉시 시작하고 EC2 재부팅 후에도 자동으로 실행되게 합
+systemctl enable --now nginx
+
+# WEB EC2 운영체제의 시간대를 한국시간으로 변경
+timedatectl set-timezone Asia/Seoul
