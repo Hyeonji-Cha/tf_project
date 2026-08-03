@@ -18,7 +18,7 @@ data "aws_iam_policy_document" "ec2_assume_role" {
 resource "aws_iam_role" "ec2_ssm" {
   # 프로젝트명을 role에 반영하여 구분할수 있게 처리
   # 역활에 policy(정책)을 반영
-  name               = "${local.project}-EC2-SSM-Role"
+  name               = "${var.project_name}-EC2-SSM-Role"
   assume_role_policy = data.aws_iam_policy_document.ec2_assume_role.json
 }
 # 3. AmazonSSMManagedInstanceCore(AWS 관리형 정책)에 role 연결
@@ -28,6 +28,6 @@ resource "aws_iam_role_policy_attachment" "ssm_core" {
 }
 # 4. EC2 구성시 적용할 IAM 인스턴스 프로필 생성 -> Launch_template에서 ec2 구성할때 사용
 resource "aws_iam_instance_profile" "ec2_ssm" {
-  name = "${local.project}-EC2-SSM-Profile"
+  name = "${var.project_name}-EC2-SSM-Profile"
   role = aws_iam_role.ec2_ssm.name
 }
