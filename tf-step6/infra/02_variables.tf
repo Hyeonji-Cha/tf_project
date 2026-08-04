@@ -54,7 +54,7 @@ variable "db_subnet_cidrs" {
 #-----------------------------------------
 # EKS 설정 관련 변수
 #-----------------------------------------
-variable "kubernates_version" {
+variable "kubernetes_version" {
   description = "EKS kubernates 버전"
   type        = string
   default     = "1.35"
@@ -64,27 +64,10 @@ variable "cluster_endpoint_public_access_cidr" {
   type        = list(string)
   default     = ["0.0.0.0/0"]
 }
-variable "additinal_admin_role_arns" {
+variable "additional_admin_role_arns" {
   description = "EKS 추가 관리자 IAM ROLE ARN 목록"
   type        = set(string)
   default     = []
-}
-
-
-variable "instance_type" {
-  description = "WEB/WAS EC 인스턴스 유형"
-  type        = string
-  default     = "t3.micro"
-}
-variable "web_desired_capacity" {
-  description = "WEB ASG 기본 인스턴스 수"
-  type        = number
-  default     = 2
-}
-variable "was_desired_capacity" {
-  description = "WAS ASG 기본 인스턴스 수"
-  type        = number
-  default     = 2
 }
 
 # ────────────────────────────────────────────────

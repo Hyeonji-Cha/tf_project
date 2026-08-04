@@ -166,6 +166,7 @@ resource "aws_route_table" "db" {
 resource "aws_route_table_association" "db" {
   for_each = aws_subnet.db
 
-  subnet_id      = aws_subnet.db[each.key].id
+  subnet_id      = each.value.id
   route_table_id = aws_route_table.db[each.key].id
 }
+
