@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Terraform EKS Auto Mode v1</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 900px; margin: 50px auto; padding: 0 20px; }
+    .card { border: 1px solid #ddd; border-radius: 12px; padding: 20px; margin: 15px 0; }
+    pre { white-space: pre-wrap; word-break: break-word; background: #f5f5f5; padding: 12px; border-radius: 8px; }
+    button { padding: 10px 16px; cursor: pointer; }
+  </style>
+</head>
+<body>
+  <h1>Terraform → Amazon EKS Auto Mode v1</h1>
+  <p>Public ALB → Web Pod → WAS Pod → RDS MySQL Multi-AZ</p>
+
+  <div class="card">
+    <h2>WAS 정보 (Web ↔ WAS)</h2>
+    <pre id="info">조회 중...</pre>
+  </div>
+
+  <div class="card">
+    <h2>RDS 연결 테스트 (Web ↔ WAS ↔ DB)</h2>
+    <button onclick="loadDb()">RDS 요청 실행</button>
+    <pre id="db">버튼을 누르세요.</pre>
+  </div>
+
+  <script>
+    async function readJson(url) {
+      // 통신 → 통신 결과 파싱 → JS 객체로 반환
+      const response = await fetch(url);  // 서버에 요청
+      const body = await response.json(); // 역직렬화 → JS 객체 구성(Python의 dict와 동일)
+      if (!response.ok) throw new Error(JSON.stringify(body));
+      return body; // 반환
+    }
+
+    async function loadInfo() {
+      try { document.getElementById('info').textContent = JSON.stringify(await readJson('/api/info'), null, 2); }
+      catch (e) { document.getElementById('info').textContent = e.message; }
+    }
+
+    async function loadDb() {
+      try { document.getElementById('db').textContent = JSON.stringify(await readJson('/api/db'), null, 2); }
+      catch (e) { document.getElementById('db').textContent = e.message; }
+    }
+
+    loadInfo();
+  </script>
+</body>
+</html>

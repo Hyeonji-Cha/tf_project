@@ -2,50 +2,51 @@
 # EKS Auto Mode 클러스터 생성 선언
 # ────────────────────────────────────────────────
 
-# 쿠버네티스 컨트로 플레인 생성, EKS Auto Mode 기능 활성화 
+# 쿠버네티스 컨트롤 플레인 생성 및 EKS Auto Mode 기능 활성화
 resource "aws_eks_cluster" "main" {
-  # eks 클러스터 이름
+  # EKS 클러스터 이름
   name = local.cluster_name
 
-  # 버전 (1.35)
+  # 버전(1.35)
   version = var.kubernetes_version
 
-  # EKS Control plane이 AWS 리소스 관리할대 IAM role
+  # EKS Control Plane이 AWS 리소스를 관리할 때 사용하는 IAM Role
   role_arn = aws_iam_role.eks_cluster.arn
 
-  # Auto Mode(자동 직접 관리) 이므로 컨트롤 플레인에 필요한 기능등 별도로 addon 하지 않음
+  # Auto Mode가 직접 관리하므로 컨트롤 플레인에 필요한 기능 등을 별도로 Add-on으로 구성하지 않음
   bootstrap_self_managed_addons = false
 
   # EKS 접근 권한 관리 방식
   access_config {
     authentication_mode = "API" # EKS Access Entry API 사용
-    # 테라폼으로 클러스터를 생성한 IAM 사용자 또는 Role[v]에 최초 클러스터 관리자 권한 부여
+
+    # Terraform으로 클러스터를 생성한 IAM 사용자 또는 Role에 최초 클러스터 관리자 권한 부여
     bootstrap_cluster_creator_admin_permissions = true
   }
 
   # EKS Auto Mode Compute 설정
   compute_config {
-    # auto mode의 ec2 노드 자동 관리 기능 활성화
+    # Auto Mode의 EC2 Node 자동 관리 기능 활성화
     enabled = true
 
-    # 노드 구성 => 노드풀에서 가져와서 구성
+    # Node 구성: Node Pool에서 가져와서 구성
     node_pools = [
-      "general-purpose", # web, was등 pod 실행하는 용도의 node
-      "system"            # 중요 시스템 pod용
+      "general-purpose", # Web, WAS 등의 Pod를 실행하는 용도의 Node
+      "system"           # 중요 시스템 Pod용
     ]
 
-    # auto mode가 node_pools에서 타입에 맞춰 용도에 맞는 node 생성(ec2만듬) -> IAM Role 적용
-    node_role_arn = aws_iam_role.eks_auto_node.arn # iam.tf에서 생성한 role 부여
+    # Auto Mode가 Node Pool의 용도에 맞는 Node를 생성(EC2 생성)하고 IAM Role을 적용
+    node_role_arn = aws_iam_role.eks_auto_node.arn # iam.tf에서 생성한 Role 부여
   }
 
   # 쿠버네티스 네트워크 설정
   kubernetes_network_config {
-    # 쿠버네티스 클러스터  내부용으로 사용되는 가상 IP 대역 부분은
-    # 기존 vpc, pod, node의 사용하는 CIDR과 겹치면 x
-    # 다른 범위로 임시 설정 (다른 구간 지정)
+    # 쿠버네티스 클러스터 내부용으로 사용하는 가상 IP 대역은
+    # 기존 VPC, Pod, Node가 사용하는 CIDR과 겹치면 안 됨
+    # 다른 범위로 임시 설정
     service_ipv4_cidr = "172.20.0.0/16"
 
-    # 로드 밸런스 서비스 감지 설정
+    # 로드 밸런서 서비스 감지 설정
     elastic_load_balancing {
       enabled = true
     }
@@ -53,32 +54,35 @@ resource "aws_eks_cluster" "main" {
 
   # 쿠버네티스 영구 스토리지 설정
   storage_config {
-    # 볼륨 생성하여 pod에 연결 => auto mode의 블록 스토리지 관리 기능 활성화
+    # 볼륨을 생성하여 Pod에 연결하고, Auto Mode의 블록 스토리지 관리 기능 활성화
     block_storage {
       enabled = true
     }
   }
 
-  # EKS가 사용하는 VPC, API endpoing  설정
+  # EKS가 사용하는 VPC 및 API Endpoint 설정
   vpc_config {
-    # private 서브넷에 배치
-    subnet_ids = values(aws_subnet.app)[*].id # 가용영역별 존재하는 서브넷 모두세팅(ids)
-    # VPC 내부에서 private eks api 엔드포인트 접속 허용
+    # Private Subnet에 배치
+    subnet_ids = values(aws_subnet.app)[*].id # 가용 영역별로 존재하는 서브넷 ID를 모두 설정
+
+    # VPC 내부에서 Private EKS API Endpoint 접속 허용
     endpoint_private_access = true
-    # 로컬 PC에서 public eks api 엔드포인트 접근 허용 (cli등으로 접근)
+
+    # 로컬 PC에서 Public EKS API Endpoint 접근 허용(CLI 등으로 접근)
     endpoint_public_access = true
-    # cidr 제약(현재, 어떤 대역이던 접근 OK 구성)
-    # public eks API Endpoint (CLI로 접근하여 명령어 전송등 처리 모든 대역 OK)
+
+    # CIDR 제약: 현재는 모든 대역에서 접근 가능하도록 구성
+    # Public EKS API Endpoint에 CLI로 접근하여 명령어 전송 가능
     public_access_cidrs = var.cluster_endpoint_public_access_cidr
   }
 
-  # 컨트롤 플레인의 로그 -> 컨트롤 플레인(두뇌) -> cloudwatch 로그 전송
+  # 컨트롤 플레인의 로그를 CloudWatch Logs로 전송
   enabled_cluster_log_types = [
     "api",               # API 요청
-    "audit",             # 누가 어떤 작업을 수행했는가 기록
-    "authenticator",     # AWS IAM 인증 처리        
-    "controllerManager", # Deployment, ReplicaSet 제어 > pod 수치/증감
-    "scheduler"          # Pod가 어떤 node에 배치되는가 기록
+    "audit",             # 누가 어떤 작업을 수행했는지 기록
+    "authenticator",     # AWS IAM 인증 처리
+    "controllerManager", # Deployment, ReplicaSet 제어 및 Pod 수 조절
+    "scheduler"          # Pod가 어떤 Node에 배치되는지 기록
   ]
 
   # 태그
@@ -86,7 +90,7 @@ resource "aws_eks_cluster" "main" {
     Name = local.cluster_name
   }
 
-  # 의존성 -> 아래 리소스들이 구성이 완료되어 있어야 eks 리소스 생성 시작한다
+  # 의존성: 아래 리소스 구성이 완료된 후 EKS 리소스 생성을 시작
   depends_on = [
     aws_iam_role_policy_attachment.eks_cluster,
     aws_iam_role_policy_attachment.eks_auto_node,
@@ -97,24 +101,37 @@ resource "aws_eks_cluster" "main" {
 
 
 # ────────────────────────────────────────────────
-# Metrics Server addon 구성 (CPU 사용량등 => pod증감등 관련 지표 )
+# Metrics Server Add-on 구성
+# CPU 사용량 등 Pod 증감과 관련된 지표 수집
 # ────────────────────────────────────────────────
-# Node, Pod의 현재 CPU, Memory 사용량 수집
+
+# Node와 Pod의 현재 CPU 및 Memory 사용량 수집
 # 목적
-# 모니터링 : 
-#  > kubectl top nodes
-#  > kubectl top pods
-# pod 확장 -> HPA는  CPU, Memeory 사용량 고려(커스텀 정책(cpu 60% 초과하면 증설하시오)) 증량
-# pod 감소 -> ..
-# 장기 지표 저장 및 시각화 => 프로메테우스/그라파나 사용 (대시보드 구성) => 관제
+# 모니터링:
+#   kubectl top nodes
+#   kubectl top pods
+#
+# Pod 확장:
+# HPA는 CPU와 Memory 사용량을 고려하여
+# 커스텀 정책에 따라 Pod 수를 증가시킴
+# 예: CPU 사용률이 60%를 초과하면 Pod 증설
+#
+# Pod 감소:
+# 사용량이 감소하면 설정된 정책에 따라 Pod 수를 감소시킴
+#
+# 장기 지표 저장 및 시각화:
+# Prometheus와 Grafana를 사용하여 대시보드 및 관제 환경 구성
 resource "aws_eks_addon" "metrics_server" {
-  # 매트릭 서버를 에드온할 대상 EKS 클러스터
+  # Metrics Server Add-on을 설치할 대상 EKS 클러스터
   cluster_name = aws_eks_cluster.main.name
+
   # Add-on 이름
   addon_name = "metrics-server"
-  # 이미 설정이된 경우 -> 설정 덮어쓰기로 구성
+
+  # 이미 설정된 경우 기존 설정을 덮어쓰도록 구성
   resolve_conflicts_on_create = "OVERWRITE"
   resolve_conflicts_on_update = "OVERWRITE"
+
   # 태그
   tags = {
     Name = "${local.cluster_name}-metrics-server"
@@ -123,40 +140,46 @@ resource "aws_eks_addon" "metrics_server" {
 
 
 # ────────────────────────────────────────────────
-# IAM Role 부분 추가 등록등 처리 - 추가 관리자 access 엔트리
+# IAM Role 추가 등록 처리
+# 추가 관리자 Access Entry 구성
 # ────────────────────────────────────────────────
-# var.additional_admin_role_arns에 설정된 계정들도 EKS 클러스터에 접근하도록 관리 주체도 등록
-# 현재는 비워 있음 => []
+
+# var.additional_admin_role_arns에 설정된 계정도
+# EKS 클러스터에 접근할 수 있도록 관리 주체로 등록
+# 현재는 비어 있음: []
 resource "aws_eks_access_entry" "admin" {
-  # 등록된 사용자 수 만큼 eks 클러스터 관리자에 등록하기 위해 엔트리 반복 데이터로 배치
+  # 등록된 사용자 수만큼 EKS 클러스터 관리자 Entry를 반복 생성
   for_each = var.additional_admin_role_arns
 
-  # 대상 eks 클러스터
+  # 대상 EKS 클러스터
   cluster_name = aws_eks_cluster.main.name
 
-  # 접근할 role arn
+  # 접근할 Role ARN
   principal_arn = each.value
 
-  # 타입 : 일반 Iam 사용자, 다른 일반 role에 부여
+  # 타입: 일반 IAM 사용자 또는 Role에 적용
   type = "STANDARD"
 }
-# 엔트리에 등록된 IAM Role에 eks 클러스터 관리자 권한을 실제 할당
+
+
+# Entry에 등록된 IAM Role에 EKS 클러스터 관리자 권한을 실제로 할당
 resource "aws_eks_access_policy_association" "admin" {
-  # 대상자(role등) 반복 설정
+  # 대상 IAM Role 등을 반복 설정
   for_each = var.additional_admin_role_arns
 
-  # 권한을 적용할 eks 클러스터
+  # 권한을 적용할 EKS 클러스터
   cluster_name = aws_eks_cluster.main.name
 
-  # 접근할 role arn
+  # 접근할 Role ARN
   principal_arn = each.value
 
-  # 실제 관리자 정책 => AWS에서 사전에 확정한 정책 => arn 방식 표기
+  # 실제 관리자 정책
+  # AWS에서 사전에 정의한 정책을 ARN 방식으로 표기
   policy_arn = "arn:aws:eks::aws:cluster-access-policy/AmazonEKSClusterAdminPolicy"
 
   # 접근 범위
   access_scope {
-    # 특정 네임스페이스가 아닌 전체 클러스터에 영향을 미침(전체 권한 적용)
+    # 특정 Namespace가 아닌 전체 클러스터에 권한 적용
     type = "cluster"
   }
 
